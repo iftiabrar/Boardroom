@@ -1,10 +1,13 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+import { validateSync } from "class-validator";
+import { plainToInstance } from "class-transformer";
 
 import { Board } from "./entities/board.entity";
 import { BoardElement } from "./entities/board-element.entity";
@@ -14,7 +17,20 @@ import { BoardQueryDto } from "./dto/board-query.dto";
 import { CreateElementDto } from "./dto/create-element.dto";
 import { UpdateElementDto } from "./dto/update-element.dto";
 import { ElementQueryDto } from "./dto/element-query.dto";
+import {
+  StrokeDataDto,
+  ShapeDataDto,
+  TextDataDto,
+  StickyNoteDataDto,
+} from "./dto/element-data.dto";
 import { paginate } from "../../common/helpers/paginate";
+
+const DATA_DTO: Record<string, new () => object> = {
+  stroke: StrokeDataDto,
+  shape: ShapeDataDto,
+  text: TextDataDto,
+  sticky_note: StickyNoteDataDto,
+};
 
 @Injectable()
 export class BoardsService {
@@ -26,11 +42,28 @@ export class BoardsService {
     private readonly elementRepository: Repository<BoardElement>,
   ) {}
 
-  async createBoard(
-    roomId: string,
-    userId: string,
-    dto: CreateBoardDto,
-  ) {
+  // Checks element "data" against the DTO of its type
+  private checkData(type: string, data: object) {
+    const dtoClass = DATA_DTO[type];
+    if (!dtoClass) {
+      throw new BadRequestException("Unknown element type");
+    }
+    const errors = validateSync(plainToInstance(dtoClass, data), {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    });
+    if (errors.length) {
+      throw new BadRequestException(
+        errors.flatMap((e) => Object.values(e.constraints ?? {})),
+      );
+    }
+  }
+
+  // -------------------------
+  // BOARDS
+  // -------------------------
+
+  async createBoard(roomId: string, userId: string, dto: CreateBoardDto) {
     const board = this.boardRepository.create({
       ...dto,
       room_id: roomId,
@@ -62,10 +95,7 @@ export class BoardsService {
 
   async findBoardInRoom(roomId: string, boardId: string) {
     const board = await this.boardRepository.findOne({
-      where: {
-        id: boardId,
-        room_id: roomId,
-      },
+      where: { id: boardId, room_id: roomId },
     });
 
     if (!board) {
@@ -79,22 +109,13 @@ export class BoardsService {
     const board = await this.findBoardInRoom(roomId, boardId);
 
     const elementCount = await this.elementRepository.count({
-      where: {
-        board_id: board.id,
-      },
+      where: { board_id: board.id },
     });
 
-    return {
-      ...board,
-      element_count: elementCount,
-    };
+    return { ...board, element_count: elementCount };
   }
 
-  async updateBoard(
-    roomId: string,
-    boardId: string,
-    dto: UpdateBoardDto,
-  ) {
+  async updateBoard(roomId: string, boardId: string, dto: UpdateBoardDto) {
     const board = await this.findBoardInRoom(roomId, boardId);
 
     Object.assign(board, dto);
@@ -107,9 +128,7 @@ export class BoardsService {
 
     await this.boardRepository.remove(board);
 
-    return {
-      message: "Board deleted successfully",
-    };
+    return { message: "Board deleted successfully" };
   }
 
   // -------------------------
@@ -124,6 +143,8 @@ export class BoardsService {
   ) {
     await this.findBoardInRoom(roomId, boardId);
 
+    this.checkData(dto.type, dto.data);
+
     const element = this.elementRepository.create({
       board_id: boardId,
       created_by: userId,
@@ -136,11 +157,7 @@ export class BoardsService {
     return this.elementRepository.save(element);
   }
 
-  async getElements(
-    roomId: string,
-    boardId: string,
-    q: ElementQueryDto,
-  ) {
+  async getElements(roomId: string, boardId: string, q: ElementQueryDto) {
     await this.findBoardInRoom(roomId, boardId);
 
     const qb = this.elementRepository
@@ -151,9 +168,7 @@ export class BoardsService {
       .take(q.limit);
 
     if (q.type) {
-      qb.andWhere("element.type = :type", {
-        type: q.type,
-      });
+      qb.andWhere("element.type = :type", { type: q.type });
     }
 
     const [items, total] = await qb.getManyAndCount();
@@ -161,18 +176,11 @@ export class BoardsService {
     return paginate(items, total, q);
   }
 
-  async getElement(
-    roomId: string,
-    boardId: string,
-    elementId: string,
-  ) {
+  async getElement(roomId: string, boardId: string, elementId: string) {
     await this.findBoardInRoom(roomId, boardId);
 
     const element = await this.elementRepository.findOne({
-      where: {
-        id: elementId,
-        board_id: boardId,
-      },
+      where: { id: elementId, board_id: boardId },
     });
 
     if (!element) {
@@ -188,11 +196,11 @@ export class BoardsService {
     elementId: string,
     dto: UpdateElementDto,
   ) {
-    const element = await this.getElement(
-      roomId,
-      boardId,
-      elementId,
-    );
+    const element = await this.getElement(roomId, boardId, elementId);
+
+    if (dto.data !== undefined) {
+      this.checkData(element.type, dto.data);
+    }
 
     const changes: any = {};
 
@@ -205,15 +213,8 @@ export class BoardsService {
     }
 
     const result = await this.elementRepository.update(
-      {
-        id: elementId,
-        board_id: boardId,
-        version: dto.version,
-      },
-      {
-        ...changes,
-        version: () => "version + 1",
-      },
+      { id: elementId, board_id: boardId, version: dto.version },
+      { ...changes, version: () => "version + 1" },
     );
 
     if (result.affected === 0) {
@@ -225,21 +226,11 @@ export class BoardsService {
     return this.getElement(roomId, boardId, elementId);
   }
 
-  async deleteElement(
-    roomId: string,
-    boardId: string,
-    elementId: string,
-  ) {
-    const element = await this.getElement(
-      roomId,
-      boardId,
-      elementId,
-    );
+  async deleteElement(roomId: string, boardId: string, elementId: string) {
+    const element = await this.getElement(roomId, boardId, elementId);
 
     await this.elementRepository.remove(element);
 
-    return {
-      message: "Element deleted successfully",
-    };
+    return { message: "Element deleted successfully" };
   }
 }
