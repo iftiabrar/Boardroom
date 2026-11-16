@@ -7,6 +7,9 @@ import global_config from "@/config/global_config";
 import { BullModule } from "@nestjs/bull";
 import { UserModule } from "./modules/user/user.module";
 import { AuthModule } from "./modules/auth/auth.module";
+import { APP_GUARD } from "@nestjs/core";
+import { JwtGuard } from "@/common/guard/jwt.guard";
+import { RolesGuard } from "@/common/guard/roles.guard";
 
 @Module({
   imports: [
@@ -26,6 +29,16 @@ import { AuthModule } from "./modules/auth/auth.module";
     UserModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: JwtGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
+  ],
 })
 export class AppModule {}
