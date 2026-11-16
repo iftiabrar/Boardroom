@@ -61,6 +61,10 @@ return await this.userRepository.delete({id:id});
   }
 }
 
+async findById(id: string): Promise<User | null> {
+  return this.userRepository.findOne({ where: { id } });
+}
+
 async findOneByEmail(email: string): Promise<User | null> {
   try{
     const user = await this.userRepository.findOne({ where: { email:email } });
