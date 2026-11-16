@@ -1,78 +1,31 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { UserService } from "../user/user.service";
-import { AuthDto } from "./dto/auth.dto";
-import { User } from "../user/entities/user.entity";
-import { appConfig } from "@/src/config/app.config";
+import { ForbiddenException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-
+import { appConfig } from "@/src/config";
+import { UserService } from "../user/user.service";
+import { User } from "../user/entities/user.entity";
+import { AuthDto } from "./dto/auth.dto";
 
 @Injectable()
 export class AuthService {
-    constructor( 
-        private userService: UserService,
-        private jwt: JwtService,
-    ){}
+  constructor(
+    private readonly userService: UserService,
+    private readonly jwt: JwtService,
+  ) {}
 
-    async signIn(dto:AuthDto){
-        const user = await this.checkUserByEmail(dto.email);
-        if(!user){  
-            throw new NotFoundException("User or Password not found") ;  
+  async signIn(dto: AuthDto) {
+    const user = await this.userService.findOneByEmail(dto.email);
+    // TEMPORARY plain-text check. Replaced with bcrypt.compare in A8.
+    if (!user || user.password !== dto.password) {
+      throw new UnauthorizedException("Invalid email or password");
     }
-    await this.validateUser(user,dto.password);
-    const {access_token,refresh_token,expires_in} 
-    = await this.signTokens(user);
-    return {access_token,refresh_token,expires_in};
+    if (!user.is_active) throw new ForbiddenException("Account is inactive");
 
-}
-  
-async signTokens(user:User):Promise<{
-    access_token:string;
-    refresh_token:string;
-    expires_in:number;
-    permissions?:any;}>{
-        const expires_in=Date.now()+1000*60*60*24*7; // 30 din 
-const accessPayload={
-            user_id:user.id,
-            name:user?.name,
-            email:user?.email,}
-const refreshPayload={
-    user_id:user.id,};
+    const access_token = await this.signToken(user);
+    const { password, ...safe } = user;
+    return { access_token, expires_in: appConfig.env.JWT_EXPIRES_IN, user: safe };
+  }
 
-  const bearerSecret=appConfig.env.JWT_BEARER_SECRET;
-  const refreshSecret=appConfig.env.JWT_REFRESH_SECRET;
-
-  const accesSToken=await this.jwt.signAsync(accessPayload,{
-    secret:bearerSecret,
-    expiresIn:'15d',
-    });
-
-const refresh_token=await this.jwt.signAsync(refreshPayload,{
-    secret:refreshSecret,
-    expiresIn:'7d',
-    });
-
-    return {access_token:accesSToken,
-        refresh_token:refresh_token,
-        expires_in:expires_in,
-    };}
-
-
-async checkUserByEmail(email:string){
-
-    try{
-        const user=await this.userService.findOneByEmail(email);
-        return user;
-    }
-    catch(e:any){
-        throw new NotFoundException("User not found");
-    }
-}
-
-async validateUser(user:AuthDto,password:string){
-    const PasswordMatch=user.password===password;
-    if(!PasswordMatch){
-        throw new NotFoundException("User or Password not found");
-        return true;
-    }
-}
+  private signToken(user: User) {
+    return this.jwt.signAsync({ sub: user.id, email: user.email, name: user.name, role: user.role });
+  }
 }
