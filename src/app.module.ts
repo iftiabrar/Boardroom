@@ -10,7 +10,7 @@ import { JwtGuard } from "@/common/guard/jwt.guard";
 import { RolesGuard } from "@/common/guard/roles.guard";
 import { UserModule } from "./modules/user/user.module";
 import { AuthModule } from "./modules/auth/auth.module";
-import { RoomsModule } from "./modules/rooms/rooms.module";
+import { RoomModule } from "./modules/rooms/rooms.module";
 import { BoardsModule } from "./modules/boards/boards.module";
 import { MessagesModule } from "./modules/messages/messages.module";
 
@@ -30,7 +30,7 @@ import { MessagesModule } from "./modules/messages/messages.module";
     }),
     AuthModule,
     UserModule,
-    RoomsModule,
+    RoomModule,
     BoardsModule,
     MessagesModule,
   ],
