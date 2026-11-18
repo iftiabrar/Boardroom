@@ -1,133 +1,79 @@
-# Krown Dex Backend – Setup & Run Guide
-Please setup the pnpm and the node_module , use the boiler plate
-````bash
+# BoardRoom API
 
-This guide will help you set up and run the NestJS backend project locally.
+BoardRoom is a REST API for small group collaboration. Users create rooms, invite others with a link, approve join requests in a lobby, and work together on shared boards (strokes, shapes, text and sticky notes) and a room chat.
 
-## 🚀 Prerequisites
-Before starting, ensure the following are installed:
-- Node.js v22 or later
-- PostgreSQL
-- Redis
-- npm, yarn, or pnpm (any package manager)
-- Docker (optional, for containerized setup)
+Built with NestJS, TypeORM and PostgreSQL for CSC4161 Advance Programming in Web Technology, Section E.
 
----
+## Requirements
 
-## 📦 Install Dependencies
-Use any of the following commands:
+- Node.js 22 or later
+- pnpm
+- PostgreSQL (and pgAdmin to look at the tables)
 
-```bash
-pnpm install
-# or
-yarn install
-# or
-npm install
+## Setup
 
+1. Clone the repository and install packages
 
-````
+   ```bash
+   git clone https://github.com/iftiabrar/Boardroom.git
+   cd Boardroom
+   pnpm install
+   ```
 
-# 🔧 Environment Variables
+2. Copy `.env.example` to `.env` and fill in your own values (database password, JWT secret, Mailtrap login)
 
-Go to the project root directory
-Find the file .env.example
-Create a .env file in the same directory
-Copy all content from .env.example into .env
-Update values based on your local environment
-Example:
+   ```bash
+   cp .env.example .env
+   ```
 
-```bash
-cp .env.example .env
+3. In pgAdmin create an empty database named `boardroom`
+
+4. Build the tables and create the admin account
+
+   ```bash
+   pnpm migration:run
+   pnpm seed:admin
+   ```
+
+5. Start the server
+
+   ```bash
+   pnpm start:dev
+   ```
+
+## API docs
+
+- Base URL: `http://localhost:5001/api/v1`
+- Swagger UI: `http://localhost:5001/api/docs`
+
+Click **Authorize** in Swagger and paste the `access_token` from the login response.
+
+## Demo admin login
+
+Taken from `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env`. The defaults in `.env.example` are:
+
+- Email: `admin@boardroom.test`
+- Password: `Admin@12345`
+
+## Response format
+
+Success:
+
+```json
+{ "success": true, "message": "Logged in", "data": { }, "meta": null }
 ```
 
-# 🗄️ Database Setup & Migrations
+Error:
 
-Create the database
-
-```bash
-create db krown_dex_db
-
+```json
+{ "success": false, "statusCode": 409, "error": "Conflict", "message": "Email is already registered", "path": "/api/v1/auth/register", "timestamp": "..." }
 ```
 
-Run migrations
+## Team
 
-```bash
-pnpm run migration:run
-# or
-yarn migration:run
-# or
-npm run migration:run
-
-```
-
-# ⚡ Redis Setup
-
-Option 1: Run Redis with Docker
-
-```bash
-docker run -d --name krown-redis -p 6379:6379 redis:7-alpine
-```
-
-Option 2: Native install- Start Redis manually, then ensure .env values match:
-
-```bash
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
-
-```
-
-# ▶️ Running the Backend (Development)
-
-Start the NestJS app:
-
-```bash
-pnpm start:dev
-# or
-yarn start:dev
-# or
-npm run start:dev
-
-```
-
-# 🏗️ Production Build
-
-Create a production build:
-
-```bash
-pnpm build
-# or
-yarn build
-# or
-npm run build
-
-```
-
-Start the production server:
-
-```bash
-pnpm start:prod
-# or
-yarn start:prod
-# or
-npm run start:prod
-
-```
-
-# 📁 Project Structure (Overview)
-
-```bash
-/project-root
-  ├─ src/
-  │   ├─ modules/
-  │   ├─ common/
-  │   ├─ config/
-  │   ├─ main.ts
-  │   └─ app.module.ts
-  ├─ migrations/
-  ├─ test/
-  ├─ .env.example
-  ├─ package.json
-  └─ tsconfig.json
-
-```
+| Member | Part |
+| --- | --- |
+| Abrar Faiaz Siddiquy | Auth, Users, Audit log, common layer |
+| Syeda Faiza Nawar | Rooms and Members |
+| Abyed Rahman Rokon | Boards, Board elements, Messages |
+| MD. Sadman Islam Shams | Invites, Lobby, Mail |
