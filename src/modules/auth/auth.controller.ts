@@ -1,7 +1,7 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards, ValidationPipe } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, HttpStatus, Post } from "@nestjs/common";
 import { ApiBearerAuth } from "@nestjs/swagger";
-import { JwtGuard } from "@/common/guard/jwt.guard";
 import { CurrentUser } from "@/common/decorators/current-user.decorator";
+import { Public } from "@/common/decorators/public.decorator";
 import { AuthUser } from "@/common/interfaces/auth-user.interface";
 import { AuthService } from "./auth.service";
 import { AuthDto } from "./dto/auth.dto";
@@ -10,6 +10,7 @@ import { AuthDto } from "./dto/auth.dto";
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  @Public()
   @HttpCode(HttpStatus.OK)
   @Post("login")
   login(@Body() dto: AuthDto) {
@@ -18,7 +19,6 @@ export class AuthController {
 
   @Get("me")
   @ApiBearerAuth()
-  @UseGuards(JwtGuard) // temporary: becomes global in A3
   me(@CurrentUser() user: AuthUser) {
     return user;
   }
