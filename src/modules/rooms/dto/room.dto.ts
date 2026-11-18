@@ -18,10 +18,9 @@ export class CreateRoomDto {
  
 export class UpdateRoomDto extends PartialType(CreateRoomDto) {}      // PartialType from @nestjs/swagger
  
-//export class RoomQueryDto extends PaginationQueryDto {
- // @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(100)
- // search?: string;
-//}
+export class RoomQueryDto extends PaginationQueryDto {
+   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(100) search?: string;
+}
  
 export class UpdateMemberRoleDto {
   @ApiProperty({ enum: [RoomRole.EDITOR, RoomRole.VIEWER] }) @IsIn([RoomRole.EDITOR, RoomRole.VIEWER])
