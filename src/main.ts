@@ -7,11 +7,14 @@ import { Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import { join } from "path";
+import { ValidationPipe } from "@nestjs/common";
 
 dotenv.config();
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.setGlobalPrefix("api/v1");
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   app.useStaticAssets(join(process.cwd(), "uploads"), {
     prefix: "/uploads/",
@@ -46,12 +49,12 @@ async function bootstrap() {
 
   // 2. Swagger Configuration
   const config = new DocumentBuilder()
-    .setTitle("KDex API")
+    .setTitle("Boardroom API")
     .setVersion("1.0")
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup("api", app, document);
+  SwaggerModule.setup("api/docs", app, document);
 
   // 3. Cookie Parser
   const cookieSecret =
