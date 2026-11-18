@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Ip,
   Param,
   Patch,
   Post,
@@ -27,9 +28,7 @@ import { AuthUser } from "../../common/interfaces/auth-user.interface";
 @Controller("rooms/:roomId/boards/:boardId/elements")
 @UseGuards(RoomRolesGuard)
 export class ElementsController {
-  constructor(
-    private readonly boardsService: BoardsService,
-  ) {}
+  constructor(private readonly boardsService: BoardsService) {}
 
   @Post()
   @RoomRoles(RoomRole.OWNER, RoomRole.EDITOR)
@@ -38,13 +37,9 @@ export class ElementsController {
     @Param("boardId") boardId: string,
     @CurrentUser() user: AuthUser,
     @Body() dto: CreateElementDto,
+    @Ip() ip: string,
   ) {
-    return this.boardsService.createElement(
-      roomId,
-      boardId,
-      user.id,
-      dto,
-    );
+    return this.boardsService.createElement(roomId, boardId, user.id, dto, ip);
   }
 
   @Get()
@@ -53,11 +48,7 @@ export class ElementsController {
     @Param("boardId") boardId: string,
     @Query() q: ElementQueryDto,
   ) {
-    return this.boardsService.getElements(
-      roomId,
-      boardId,
-      q,
-    );
+    return this.boardsService.getElements(roomId, boardId, q);
   }
 
   @Get(":elementId")
@@ -66,11 +57,7 @@ export class ElementsController {
     @Param("boardId") boardId: string,
     @Param("elementId") elementId: string,
   ) {
-    return this.boardsService.getElement(
-      roomId,
-      boardId,
-      elementId,
-    );
+    return this.boardsService.getElement(roomId, boardId, elementId);
   }
 
   @Patch(":elementId")
@@ -79,13 +66,17 @@ export class ElementsController {
     @Param("roomId") roomId: string,
     @Param("boardId") boardId: string,
     @Param("elementId") elementId: string,
+    @CurrentUser() user: AuthUser,
     @Body() dto: UpdateElementDto,
+    @Ip() ip: string,
   ) {
     return this.boardsService.updateElement(
       roomId,
       boardId,
       elementId,
+      user.id,
       dto,
+      ip,
     );
   }
 
@@ -95,11 +86,15 @@ export class ElementsController {
     @Param("roomId") roomId: string,
     @Param("boardId") boardId: string,
     @Param("elementId") elementId: string,
+    @CurrentUser() user: AuthUser,
+    @Ip() ip: string,
   ) {
     return this.boardsService.deleteElement(
       roomId,
       boardId,
       elementId,
+      user.id,
+      ip,
     );
   }
 }

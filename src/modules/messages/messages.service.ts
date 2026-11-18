@@ -4,28 +4,29 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import {
-  LessThan,
-  Repository,
-} from "typeorm";
+import { LessThan, Repository } from "typeorm";
 
 import { Message } from "./entities/message.entity";
 import { CreateMessageDto } from "./dto/create-message.dto";
 import { UpdateMessageDto } from "./dto/update-message.dto";
 import { MessageQueryDto } from "./dto/message-query.dto";
 import { paginate } from "../../common/helpers/paginate";
+import { AuditService } from "../audit/audit.service";
 
 @Injectable()
 export class MessagesService {
   constructor(
     @InjectRepository(Message)
     private readonly messageRepository: Repository<Message>,
+
+    private readonly auditService: AuditService,
   ) {}
 
   async create(
     roomId: string,
     userId: string,
     dto: CreateMessageDto,
+    ip: string,
   ) {
     const message = this.messageRepository.create({
       room_id: roomId,
@@ -34,35 +35,40 @@ export class MessagesService {
       is_edited: false,
     });
 
-    return this.messageRepository.save(message);
+    const saved = await this.messageRepository.save(message);
+
+    await this.auditService.record({
+      user_id: userId,
+      action: "CREATE",
+      entity: "messages",
+      entity_id: saved.id,
+      new_values: { ...saved },
+      ip,
+    });
+
+    return saved;
   }
 
-  async findAll(
-    roomId: string,
-    q: MessageQueryDto,
-  ) {
+  async findAll(roomId: string, q: MessageQueryDto) {
     const where: any = {
       room_id: roomId,
     };
 
     if (q.before) {
-      where.created_at = LessThan(
-        new Date(q.before),
-      );
+      where.created_at = LessThan(new Date(q.before));
     }
 
-    const [items, total] =
-      await this.messageRepository.findAndCount({
-        where,
-        relations: {
-          sender: true,
-        },
-        order: {
-          created_at: "DESC",
-        },
-        skip: (q.page - 1) * q.limit,
-        take: q.limit,
-      });
+    const [items, total] = await this.messageRepository.findAndCount({
+      where,
+      relations: {
+        sender: true,
+      },
+      order: {
+        created_at: "DESC",
+      },
+      skip: (q.page - 1) * q.limit,
+      take: q.limit,
+    });
 
     const result = items.map((message) => ({
       id: message.id,
@@ -78,25 +84,19 @@ export class MessagesService {
     return paginate(result, total, q);
   }
 
-  async findOne(
-    roomId: string,
-    messageId: string,
-  ) {
-    const message =
-      await this.messageRepository.findOne({
-        where: {
-          id: messageId,
-          room_id: roomId,
-        },
-        relations: {
-          sender: true,
-        },
-      });
+  async findOne(roomId: string, messageId: string) {
+    const message = await this.messageRepository.findOne({
+      where: {
+        id: messageId,
+        room_id: roomId,
+      },
+      relations: {
+        sender: true,
+      },
+    });
 
     if (!message) {
-      throw new NotFoundException(
-        "Message not found",
-      );
+      throw new NotFoundException("Message not found");
     }
 
     return {
@@ -116,31 +116,41 @@ export class MessagesService {
     messageId: string,
     userId: string,
     dto: UpdateMessageDto,
+    ip: string,
   ) {
-    const message =
-      await this.messageRepository.findOne({
-        where: {
-          id: messageId,
-          room_id: roomId,
-        },
-      });
+    const message = await this.messageRepository.findOne({
+      where: {
+        id: messageId,
+        room_id: roomId,
+      },
+    });
 
     if (!message) {
-      throw new NotFoundException(
-        "Message not found",
-      );
+      throw new NotFoundException("Message not found");
     }
 
     if (message.sender_id !== userId) {
-      throw new ForbiddenException(
-        "You can edit only your own message",
-      );
+      throw new ForbiddenException("You can edit only your own message");
     }
+
+    const oldValues = { ...message };
 
     message.body = dto.body;
     message.is_edited = true;
 
-    return this.messageRepository.save(message);
+    const saved = await this.messageRepository.save(message);
+
+    await this.auditService.record({
+      user_id: userId,
+      action: "UPDATE",
+      entity: "messages",
+      entity_id: saved.id,
+      old_values: oldValues,
+      new_values: { ...saved },
+      ip,
+    });
+
+    return saved;
   }
 
   async remove(
@@ -148,33 +158,36 @@ export class MessagesService {
     messageId: string,
     userId: string,
     isOwner: boolean,
+    ip: string,
   ) {
-    const message =
-      await this.messageRepository.findOne({
-        where: {
-          id: messageId,
-          room_id: roomId,
-        },
-      });
+    const message = await this.messageRepository.findOne({
+      where: {
+        id: messageId,
+        room_id: roomId,
+      },
+    });
 
     if (!message) {
-      throw new NotFoundException(
-        "Message not found",
-      );
+      throw new NotFoundException("Message not found");
     }
 
-    if (
-      message.sender_id !== userId &&
-      !isOwner
-    ) {
-      throw new ForbiddenException(
-        "You can delete only your own message",
-      );
+    if (message.sender_id !== userId && !isOwner) {
+      throw new ForbiddenException("You can delete only your own message");
     }
 
-    await this.messageRepository.remove(
-      message,
-    );
+    const id = message.id;
+    const oldValues = { ...message };
+
+    await this.messageRepository.remove(message);
+
+    await this.auditService.record({
+      user_id: userId,
+      action: "DELETE",
+      entity: "messages",
+      entity_id: id,
+      old_values: oldValues,
+      ip,
+    });
 
     return {
       message: "Message deleted successfully",

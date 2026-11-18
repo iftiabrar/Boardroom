@@ -24,6 +24,7 @@ import {
   StickyNoteDataDto,
 } from "./dto/element-data.dto";
 import { paginate } from "../../common/helpers/paginate";
+import { AuditService } from "../audit/audit.service";
 
 const DATA_DTO: Record<string, new () => object> = {
   stroke: StrokeDataDto,
@@ -40,6 +41,8 @@ export class BoardsService {
 
     @InjectRepository(BoardElement)
     private readonly elementRepository: Repository<BoardElement>,
+
+    private readonly auditService: AuditService,
   ) {}
 
   // Checks element "data" against the DTO of its type
@@ -63,14 +66,30 @@ export class BoardsService {
   // BOARDS
   // -------------------------
 
-  async createBoard(roomId: string, userId: string, dto: CreateBoardDto) {
+  async createBoard(
+    roomId: string,
+    userId: string,
+    dto: CreateBoardDto,
+    ip: string,
+  ) {
     const board = this.boardRepository.create({
       ...dto,
       room_id: roomId,
       created_by: userId,
     });
 
-    return this.boardRepository.save(board);
+    const saved = await this.boardRepository.save(board);
+
+    await this.auditService.record({
+      user_id: userId,
+      action: "CREATE",
+      entity: "boards",
+      entity_id: saved.id,
+      new_values: { ...saved },
+      ip,
+    });
+
+    return saved;
   }
 
   async getBoards(roomId: string, q: BoardQueryDto) {
@@ -115,18 +134,53 @@ export class BoardsService {
     return { ...board, element_count: elementCount };
   }
 
-  async updateBoard(roomId: string, boardId: string, dto: UpdateBoardDto) {
+  async updateBoard(
+    roomId: string,
+    boardId: string,
+    userId: string,
+    dto: UpdateBoardDto,
+    ip: string,
+  ) {
     const board = await this.findBoardInRoom(roomId, boardId);
+    const oldValues = { ...board };
 
     Object.assign(board, dto);
 
-    return this.boardRepository.save(board);
+    const saved = await this.boardRepository.save(board);
+
+    await this.auditService.record({
+      user_id: userId,
+      action: "UPDATE",
+      entity: "boards",
+      entity_id: saved.id,
+      old_values: oldValues,
+      new_values: { ...saved },
+      ip,
+    });
+
+    return saved;
   }
 
-  async deleteBoard(roomId: string, boardId: string) {
+  async deleteBoard(
+    roomId: string,
+    boardId: string,
+    userId: string,
+    ip: string,
+  ) {
     const board = await this.findBoardInRoom(roomId, boardId);
+    const id = board.id;
+    const oldValues = { ...board };
 
     await this.boardRepository.remove(board);
+
+    await this.auditService.record({
+      user_id: userId,
+      action: "DELETE",
+      entity: "boards",
+      entity_id: id,
+      old_values: oldValues,
+      ip,
+    });
 
     return { message: "Board deleted successfully" };
   }
@@ -140,6 +194,7 @@ export class BoardsService {
     boardId: string,
     userId: string,
     dto: CreateElementDto,
+    ip: string,
   ) {
     await this.findBoardInRoom(roomId, boardId);
 
@@ -154,7 +209,18 @@ export class BoardsService {
       version: 1,
     });
 
-    return this.elementRepository.save(element);
+    const saved = await this.elementRepository.save(element);
+
+    await this.auditService.record({
+      user_id: userId,
+      action: "CREATE",
+      entity: "board_elements",
+      entity_id: saved.id,
+      new_values: { ...saved },
+      ip,
+    });
+
+    return saved;
   }
 
   async getElements(roomId: string, boardId: string, q: ElementQueryDto) {
@@ -194,9 +260,12 @@ export class BoardsService {
     roomId: string,
     boardId: string,
     elementId: string,
+    userId: string,
     dto: UpdateElementDto,
+    ip: string,
   ) {
     const element = await this.getElement(roomId, boardId, elementId);
+    const oldValues = { ...element };
 
     if (dto.data !== undefined) {
       this.checkData(element.type, dto.data);
@@ -223,13 +292,42 @@ export class BoardsService {
       );
     }
 
-    return this.getElement(roomId, boardId, elementId);
+    const updated = await this.getElement(roomId, boardId, elementId);
+
+    await this.auditService.record({
+      user_id: userId,
+      action: "UPDATE",
+      entity: "board_elements",
+      entity_id: updated.id,
+      old_values: oldValues,
+      new_values: { ...updated },
+      ip,
+    });
+
+    return updated;
   }
 
-  async deleteElement(roomId: string, boardId: string, elementId: string) {
+  async deleteElement(
+    roomId: string,
+    boardId: string,
+    elementId: string,
+    userId: string,
+    ip: string,
+  ) {
     const element = await this.getElement(roomId, boardId, elementId);
+    const id = element.id;
+    const oldValues = { ...element };
 
     await this.elementRepository.remove(element);
+
+    await this.auditService.record({
+      user_id: userId,
+      action: "DELETE",
+      entity: "board_elements",
+      entity_id: id,
+      old_values: oldValues,
+      ip,
+    });
 
     return { message: "Element deleted successfully" };
   }
