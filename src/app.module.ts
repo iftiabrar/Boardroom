@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 import { ConfigModule } from "@nestjs/config";
 import { PostgresDatabaseProviderModule } from "@/providers/database/postgres/provider.module";
@@ -8,6 +8,8 @@ import global_config from "@/config/global_config";
 import { BullModule } from "@nestjs/bull";
 import { JwtGuard } from "@/common/guard/jwt.guard";
 import { RolesGuard } from "@/common/guard/roles.guard";
+import { RequestLoggerMiddleware } from "@/common/middlewares/request-logger.middleware";
+import { AuditModule } from "./modules/audit/audit.module";
 import { UserModule } from "./modules/user/user.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { AuditModule } from "./modules/audit/audit.module";
@@ -39,14 +41,13 @@ import { MessagesModule } from "./modules/messages/messages.module";
   controllers: [AppController],
   providers: [
     AppService,
-    {
-      provide: APP_GUARD,
-      useClass: JwtGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: RolesGuard,
-    },
+    { provide: APP_GUARD, useClass: JwtGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Nest 11 syntax for "every route" (the old "*" prints a warning)
+    consumer.apply(RequestLoggerMiddleware).forRoutes("{*splat}");
+  }
+}
