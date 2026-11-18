@@ -11,6 +11,6 @@ import { RoomMember } from "./entities/room-member.entity";
   providers: [RoomService],
   exports: [RoomService],
 })
-export class RoomModule {}
+export class RoomsModule {}
 
 
