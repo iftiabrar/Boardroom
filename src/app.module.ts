@@ -12,8 +12,7 @@ import { RequestLoggerMiddleware } from "@/common/middlewares/request-logger.mid
 import { AuditModule } from "./modules/audit/audit.module";
 import { UserModule } from "./modules/user/user.module";
 import { AuthModule } from "./modules/auth/auth.module";
-import { AuditModule } from "./modules/audit/audit.module";
-import { RoomModule } from "./modules/rooms/rooms.module";
+import { RoomsModule } from "./modules/rooms/rooms.module";
 import { BoardsModule } from "./modules/boards/boards.module";
 import { MessagesModule } from "./modules/messages/messages.module";
 
@@ -34,7 +33,7 @@ import { MessagesModule } from "./modules/messages/messages.module";
     AuditModule,
     AuthModule,
     UserModule,
-    RoomModule,
+    RoomsModule,
     BoardsModule,
     MessagesModule,
   ],

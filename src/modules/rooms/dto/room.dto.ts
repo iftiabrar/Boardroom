@@ -1,3 +1,4 @@
+import { PaginationQueryDto } from "@/common/dto/pagination-query.dto";
 import { IsBoolean, IsIn, IsInt,  IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min,} from "class-validator";
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
 import { RoomRole } from "@/common/enums/room-role.enum";

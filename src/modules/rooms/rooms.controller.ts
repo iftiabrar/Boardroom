@@ -8,7 +8,7 @@ import {
   Post,
 } from "@nestjs/common";
 import { RoomService } from "./rooms.service";
-import { CreateUserDto } from "./dto/room.dto";
+import { CreateRoomDto, UpdateRoomDto } from "./dto/room.dto";
 
 @Controller("rooms")
 export class RoomController {
@@ -19,14 +19,13 @@ export class RoomController {
     return await this.roomService.getRooms();
   }
 
-  
   @Post()
-  async createRoom(@Body() dto: CreateUserDto) {
+  async createRoom(@Body() dto: CreateRoomDto) {
     return await this.roomService.createRoom(dto);
   }
 
   @Patch(":id")
-  async updateRoom(@Param("id") id: string, @Body() dto: CreateUserDto) {
+  async updateRoom(@Param("id") id: string, @Body() dto: UpdateRoomDto) {
     return await this.roomService.updateRoom(id, dto);
   }
 
@@ -35,4 +34,3 @@ export class RoomController {
     return await this.roomService.deleteRoom(id);
   }
 }
-
