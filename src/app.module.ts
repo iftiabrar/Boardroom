@@ -7,6 +7,9 @@ import global_config from "@/config/global_config";
 import { BullModule } from "@nestjs/bull";
 import { UserModule } from "./modules/user/user.module";
 import { AuthModule } from "./modules/auth/auth.module";
+import { MailModule } from './mails/mail.module';
+import { InvitesModule } from './modules/invites/invites.module';
+import { LobbyModule } from './modules/lobby/lobby.module';
 
 @Module({
   imports: [
@@ -24,8 +27,11 @@ import { AuthModule } from "./modules/auth/auth.module";
     }),
     AuthModule,
     UserModule,
+    MailModule,
+    InvitesModule,
+    LobbyModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }
