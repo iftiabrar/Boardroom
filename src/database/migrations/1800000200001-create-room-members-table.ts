@@ -21,6 +21,7 @@ export class CreateRoomMembersTable1800000200001 implements MigrationInterface {
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
+        await queryRunner.dropTable("room_members");
     }
 
 }
