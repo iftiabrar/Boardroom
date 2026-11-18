@@ -6,13 +6,13 @@ export class User {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column({ length: 30 })
+  @Column({ length: 60 })
   name!: string;
 
-  @Column({ length: 100, unique: true })
+  @Column({ length: 120, unique: true })
   email!: string;
 
-  @Column({ length: 255 })
+  @Column({ length: 255, select: false })
   password!: string;
 
   @Column({ default: Role.USER })

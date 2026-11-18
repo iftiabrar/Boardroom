@@ -4,6 +4,10 @@ import * as dotenv from "dotenv";
 import { fromZodError } from "zod-validation-error";
 dotenv.config();
 
+// The values below go through JSON.parse first, so 123456 arrives as a number and true as a boolean.
+// text() accepts those and turns them back into a string, but still fails when the key is missing.
+const text = () => z.union([z.string(), z.number(), z.boolean()]).transform(String);
+
 export const envSchema = z
   .object({
     REDIS_HOST: z.string().default("localhost"),
@@ -14,19 +18,27 @@ export const envSchema = z
     ERROR_LOG: z.coerce.boolean().default(true),
     REQ_LOG: z.coerce.boolean().default(true),
     LOG_FILE: z.coerce.boolean().default(true),
-    JWT_BEARER_SECRET: z.string(),
-     JWT_REFRESH_SECRET: z.string(),
+    JWT_BEARER_SECRET: text(),
+    JWT_REFRESH_SECRET: text().optional(),
     JWT_EXPIRES_IN: z.coerce.string().default("1d"),
     AUTH_SERVER_AUDIENCE: z.string().optional(),
     JWT_TTL: z.coerce.number().default(86400 * 365),
     PORT: z.coerce.number().default(5000),
+    APP_URL: text(),
+    DB_HOST: text(),
+    DB_PORT: z.coerce.number().default(5432),
+    DB_USER: text(),
+    DB_PASSWORD: text(),
+    DB_DATABASE: text(),
+    ADMIN_EMAIL: text(),
+    ADMIN_PASSWORD: text(),
     NODE_ENV: z.enum(["development", "production"]).default("development"),
     APP_ENV: z.enum(["local", "dev", "prod"]).default("local"),
     MAILER_HOST: z.string(),
     MAILER_PORT: z.coerce.number(),
     MAILER_SECURE: z.coerce.boolean(),
-    MAILER_USER: z.string(),
-    MAILER_PASSWORD: z.string(),
+    MAILER_USER: text(),
+    MAILER_PASSWORD: text(),
     MAILER_FROM: z.string(),
     BULB_REWARD_INTERVAL_SECOND: z.coerce.number().default(7 * 86400),
     BLOCK_QUERY_INTERVAL: z.coerce.number().default(10000),

@@ -1,21 +1,44 @@
-import { ForbiddenException, Injectable, UnauthorizedException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
+import * as bcrypt from "bcrypt";
 import { appConfig } from "@/src/config";
 import { UserService } from "../user/user.service";
 import { User } from "../user/entities/user.entity";
-import { AuthDto } from "./dto/auth.dto";
+import { AuditService } from "../audit/audit.service";
+import { AuthDto, RegisterDto } from "./dto/auth.dto";
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly userService: UserService,
     private readonly jwt: JwtService,
+    private readonly auditService: AuditService,
   ) {}
 
+  async register(dto: RegisterDto, ip: string) {
+    const exists = await this.userService.findOneByEmail(dto.email);
+    if (exists) throw new ConflictException("Email is already registered");
+
+    const hash = await bcrypt.hash(dto.password, appConfig.recommended_bycrypt_rounds);
+    const user = await this.userService.createUser({ name: dto.name, email: dto.email, password: hash });
+    const { password, ...safe } = user;
+
+    // TODO: call this.mailService.sendWelcome(user.email, user.name) once Shams's MailModule is merged into main
+    await this.auditService.record({
+      user_id: user.id,
+      action: "CREATE",
+      entity: "users",
+      entity_id: user.id,
+      new_values: safe,
+      ip,
+    });
+    return safe;
+  }
+
   async signIn(dto: AuthDto) {
-    const user = await this.userService.findOneByEmail(dto.email);
-    // TEMPORARY plain-text check. Replaced with bcrypt.compare in A8.
-    if (!user || user.password !== dto.password) {
+    const user = await this.userService.findByEmailWithPassword(dto.email);
+    // Same message for both cases, so nobody can tell which part was wrong
+    if (!user || !(await bcrypt.compare(dto.password, user.password))) {
       throw new UnauthorizedException("Invalid email or password");
     }
     if (!user.is_active) throw new ForbiddenException("Account is inactive");

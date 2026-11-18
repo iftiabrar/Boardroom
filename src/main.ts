@@ -3,11 +3,14 @@ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { NestExpressApplication } from "@nestjs/platform-express";
 import { AppModule } from "@/src/app.module";
 import * as dotenv from "dotenv";
-import { Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import { join } from "path";
 import { ValidationPipe } from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import { AllExceptionsFilter } from "@/common/filters/all-exceptions.filter";
+import { ResponseInterceptor } from "@/common/interceptors/response.interceptor";
+import { TimingInterceptor } from "@/common/interceptors/timing.interceptor";
 
 dotenv.config();
 
@@ -15,6 +18,8 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.setGlobalPrefix("api/v1");
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.useGlobalFilters(new AllExceptionsFilter());
+  app.useGlobalInterceptors(new TimingInterceptor(), new ResponseInterceptor(app.get(Reflector)));
 
   app.useStaticAssets(join(process.cwd(), "uploads"), {
     prefix: "/uploads/",
@@ -40,16 +45,11 @@ async function bootstrap() {
     }),
   );
 
-  // 1. Logger
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    const now = new Date().toISOString().replace("T", " ").replace(/\..+/, "");
-    console.log(`[HTTP] [${now}] ${req.method} ${req.originalUrl}`);
-    next();
-  });
+  // 1. Logger: moved to RequestLoggerMiddleware (applied in AppModule)
 
   // 2. Swagger Configuration
   const config = new DocumentBuilder()
-    .setTitle("Boardroom API")
+    .setTitle("BoardRoom API")
     .setVersion("1.0")
     .addBearerAuth()
     .build();
