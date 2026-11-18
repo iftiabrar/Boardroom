@@ -10,7 +10,8 @@ import { JwtGuard } from "@/common/guard/jwt.guard";
 import { RolesGuard } from "@/common/guard/roles.guard";
 import { UserModule } from "./modules/user/user.module";
 import { AuthModule } from "./modules/auth/auth.module";
-import { RoomModule } from "./modules/rooms/rooms.module";
+import { AuditModule } from "./modules/audit/audit.module";
+import { RoomsModule } from "./modules/rooms/rooms.module";
 import { BoardsModule } from "./modules/boards/boards.module";
 import { MessagesModule } from "./modules/messages/messages.module";
 
@@ -28,9 +29,10 @@ import { MessagesModule } from "./modules/messages/messages.module";
       isGlobal: true,
       load: [global_config],
     }),
+    AuditModule,
     AuthModule,
     UserModule,
-    RoomModule,
+    RoomsModule,
     BoardsModule,
     MessagesModule,
   ],
