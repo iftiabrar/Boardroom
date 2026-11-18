@@ -19,7 +19,8 @@ export class AuditLog {
   @Column({ length: 40 })
   entity!: string;
 
-  @Column({ type: "varchar", length: 60, nullable: true })
+  // 100 characters: room member actions log "roomId:userId" (73 characters)
+  @Column({ type: "varchar", length: 100, nullable: true })
   entity_id!: string | null;
 
   @Column({ type: "jsonb", nullable: true })
