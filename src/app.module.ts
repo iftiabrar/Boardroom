@@ -7,6 +7,7 @@ import global_config from "@/config/global_config";
 import { BullModule } from "@nestjs/bull";
 import { UserModule } from "./modules/user/user.module";
 import { AuthModule } from "./modules/auth/auth.module";
+import { AuditModule } from "./modules/audit/audit.module";
 import { APP_GUARD } from "@nestjs/core";
 import { JwtGuard } from "@/common/guard/jwt.guard";
 import { RolesGuard } from "@/common/guard/roles.guard";
@@ -25,6 +26,7 @@ import { RolesGuard } from "@/common/guard/roles.guard";
       isGlobal: true,
       load: [global_config],
     }),
+    AuditModule,
     AuthModule,
     UserModule,
   ],
