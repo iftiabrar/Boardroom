@@ -21,14 +21,14 @@ export class CreateUserTable1775500022201 implements MigrationInterface{
                         {
                             name:"name",
                             type:"varchar",
-                            length: "30",
+                            length: "60",
                             isNullable:false,
                         },
 
                          {
                             name:"email",
                             type:"varchar",
-                            length: "100",
+                            length: "120",
                             isNullable:false,
                             isUnique: true,
                         },
