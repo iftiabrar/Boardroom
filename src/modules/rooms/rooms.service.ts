@@ -1,73 +1,116 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
+import { DataSource, Repository } from "typeorm";
+import { paginate } from "@/common/helpers/paginate";
+import { Role } from "@/common/enums/role.enum";
+import { RoomRole } from "@/common/enums/room-role.enum";
+import { AuthUser } from "@/common/interfaces/auth-user.interface";
+import { AuditService } from "../audit/audit.service";
 import { Room } from "./entities/room.entity";
-import { Repository } from "typeorm";
-import { CreateRoomDto, UpdateRoomDto } from "./dto/room.dto";
-
+import { RoomMember } from "./entities/room-member.entity";
+import { CreateRoomDto, RoomQueryDto, UpdateRoomDto } from "./dto/room.dto";
 
 @Injectable()
-export class RoomService {
-constructor(
-  @InjectRepository(Room) private readonly roomRepository: Repository<Room>,
-) {}
+export class RoomsService {
+  constructor(
+    @InjectRepository(Room) private readonly roomRepository: Repository<Room>,
+    @InjectRepository(RoomMember) private readonly memberRepository: Repository<RoomMember>,
+    private readonly dataSource: DataSource,
+    private readonly auditService: AuditService,
+  ) {}
 
-async getRooms() {
-try {
-  const rooms = await this.roomRepository.find();
-  return rooms;}
-  catch (error) {
-    throw error;
-}
-}
+  
+  async create(user: AuthUser, dto: CreateRoomDto, ip: string) {
+    return this.dataSource.transaction(async (manager) => {
+      const room = await manager.save(Room, manager.create(Room, { ...dto, owner_id: user.id }));
+      await manager.save(RoomMember, { room_id: room.id, user_id: user.id, role: RoomRole.OWNER });
+      await this.auditService.record(
+        {
+          user_id: user.id,
+          action: "CREATE",
+          entity: "rooms",
+          entity_id: room.id,
+          new_values: room,
+          ip,
+        },
+        manager,
+      );
+      return room;
+    });
+  }
 
-async createRoom(dto: CreateRoomDto) {
-try{
-  const responce = await this.roomRepository.create(dto);
-  return await this.roomRepository.save(responce);
-}
-catch (error) {
-  throw error;
-}}
+  
+  async findMine(user: AuthUser, q: RoomQueryDto) {
+    const qb = this.roomRepository
+      .createQueryBuilder("room")
+      .innerJoin(RoomMember, "m", "m.room_id = room.id AND m.user_id = :uid", { uid: user.id })
+      .orderBy("room.created_at", "DESC")
+      .skip((q.page - 1) * q.limit)
+      .take(q.limit);
 
-async updateRoom(id: string, dto: UpdateRoomDto) {
-  try{
-    console.log("id",id);
-    if (!id) {
-      throw new NotFoundException("Room with ID not found");
+    if (q.search) {
+      qb.andWhere("room.name ILIKE :s", { s: "%" + q.search + "%" });
     }
-    const room = await this.roomRepository.findOne({ where: { id:id } });
-    if (!room) {
-      throw new NotFoundException("Room with ID not found");
+
+    const [items, total] = await qb.getManyAndCount();
+    return paginate(items, total, q);
+  }
+
+ 
+  async findOne(room: Room, me: RoomMember) {
+    const member_count = await this.memberRepository.count({ where: { room_id: room.id } });
+    return { ...room, member_count, my_role: me.role };
+  }
+
+  async update(room: Room, dto: UpdateRoomDto, user: AuthUser, ip: string) {
+    if (dto.max_members !== undefined) {
+      const count = await this.memberRepository.count({ where: { room_id: room.id } });
+      if (dto.max_members < count) {
+        throw new ConflictException(
+          "max_members cannot be lower than the current member count (" + count + ")",
+        );
+      }
     }
+
+    const old = { ...room };
     Object.assign(room, dto);
-    const {id: uid, ...rest}=room;
-    return await this.roomRepository.update({id:id}, rest);
-  } 
-  catch(error){
-    throw error;
-  }
-}
+    const saved = await this.roomRepository.save(room);
 
-async deleteRoom(id: string) {
-  try{
-  const room = await this.roomRepository.findOne({ where: { id:id } });
-if (!room) {
-  throw new NotFoundException("Room with ID not found");  
-}
-return await this.roomRepository.delete({id:id});
+    await this.auditService.record({
+      user_id: user.id,
+      action: "UPDATE",
+      entity: "rooms",
+      entity_id: room.id,
+      old_values: old,
+      new_values: saved,
+      ip,
+    });
+    return saved;
   }
-  catch(error){
-    throw error;
+
+  
+  async remove(roomId: string, user: AuthUser, ip: string) {
+    const room = await this.roomRepository.findOne({ where: { id: roomId } });
+    if (!room) throw new NotFoundException("Room not found");
+    if (user.role !== Role.ADMIN && room.owner_id !== user.id) {
+      throw new ForbiddenException("Only the owner or an admin can delete this room");
+    }
+
+    await this.roomRepository.delete({ id: roomId });
+
+    await this.auditService.record({
+      user_id: user.id,
+      action: "DELETE",
+      entity: "rooms",
+      entity_id: roomId,
+      old_values: room,
+      ip,
+    });
+    return { id: roomId };
   }
-}
-
-//async findOneByEmail(email: string): Promise<Room | null> {
- // try{
-  //  const room = await this.roomRepository.findOne({ where: { email:email } });
-  //  return room;
- // }
-  //catch(error){
-  //  throw error;
-  //}
-
 }
