@@ -9,9 +9,12 @@ import { BullModule } from "@nestjs/bull";
 import { JwtGuard } from "@/common/guard/jwt.guard";
 import { RolesGuard } from "@/common/guard/roles.guard";
 import { RequestLoggerMiddleware } from "@/common/middlewares/request-logger.middleware";
-import { AuditModule } from "./modules/audit/audit.module";
 import { UserModule } from "./modules/user/user.module";
 import { AuthModule } from "./modules/auth/auth.module";
+import { MailModule } from './mails/mail.module';
+import { InvitesModule } from './modules/invites/invites.module';
+import { LobbyModule } from './modules/lobby/lobby.module';
+import { AuditModule } from "./modules/audit/audit.module";
 import { RoomsModule } from "./modules/rooms/rooms.module";
 import { BoardsModule } from "./modules/boards/boards.module";
 import { MessagesModule } from "./modules/messages/messages.module";
@@ -19,10 +22,6 @@ import { MessagesModule } from "./modules/messages/messages.module";
 @Module({
   imports: [
     PostgresDatabaseProviderModule,
-    ConfigModule.forRoot({
-      isGlobal: true,
-      load: [],
-    }),
     BullModule.forRoot({
       url: process.env.REDIS_URL,
     }),
@@ -33,6 +32,9 @@ import { MessagesModule } from "./modules/messages/messages.module";
     AuditModule,
     AuthModule,
     UserModule,
+    MailModule,
+    InvitesModule,
+    LobbyModule,
     RoomsModule,
     BoardsModule,
     MessagesModule,
