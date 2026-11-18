@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Ip,
   Param,
   Patch,
   Post,
@@ -27,9 +28,7 @@ import { AuthUser } from "../../common/interfaces/auth-user.interface";
 @Controller("rooms/:roomId/boards")
 @UseGuards(RoomRolesGuard)
 export class BoardsController {
-  constructor(
-    private readonly boardsService: BoardsService,
-  ) {}
+  constructor(private readonly boardsService: BoardsService) {}
 
   @Post()
   @RoomRoles(RoomRole.OWNER, RoomRole.EDITOR)
@@ -37,12 +36,9 @@ export class BoardsController {
     @Param("roomId") roomId: string,
     @CurrentUser() user: AuthUser,
     @Body() dto: CreateBoardDto,
+    @Ip() ip: string,
   ) {
-    return this.boardsService.createBoard(
-      roomId,
-      user.id,
-      dto,
-    );
+    return this.boardsService.createBoard(roomId, user.id, dto, ip);
   }
 
   @Get()
@@ -66,13 +62,11 @@ export class BoardsController {
   update(
     @Param("roomId") roomId: string,
     @Param("boardId") boardId: string,
+    @CurrentUser() user: AuthUser,
     @Body() dto: UpdateBoardDto,
+    @Ip() ip: string,
   ) {
-    return this.boardsService.updateBoard(
-      roomId,
-      boardId,
-      dto,
-    );
+    return this.boardsService.updateBoard(roomId, boardId, user.id, dto, ip);
   }
 
   @Delete(":boardId")
@@ -80,10 +74,9 @@ export class BoardsController {
   delete(
     @Param("roomId") roomId: string,
     @Param("boardId") boardId: string,
+    @CurrentUser() user: AuthUser,
+    @Ip() ip: string,
   ) {
-    return this.boardsService.deleteBoard(
-      roomId,
-      boardId,
-    );
+    return this.boardsService.deleteBoard(roomId, boardId, user.id, ip);
   }
 }

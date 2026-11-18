@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Ip,
   Param,
   Patch,
   Post,
@@ -10,10 +11,7 @@ import {
   Req,
   UseGuards,
 } from "@nestjs/common";
-import {
-  ApiBearerAuth,
-  ApiTags,
-} from "@nestjs/swagger";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
 import { MessagesService } from "./messages.service";
 import { CreateMessageDto } from "./dto/create-message.dto";
@@ -29,21 +27,16 @@ import { AuthUser } from "../../common/interfaces/auth-user.interface";
 @Controller("rooms/:roomId/messages")
 @UseGuards(RoomRolesGuard)
 export class MessagesController {
-  constructor(
-    private readonly messagesService: MessagesService,
-  ) {}
+  constructor(private readonly messagesService: MessagesService) {}
 
   @Post()
   create(
     @Param("roomId") roomId: string,
     @CurrentUser() user: AuthUser,
     @Body() dto: CreateMessageDto,
+    @Ip() ip: string,
   ) {
-    return this.messagesService.create(
-      roomId,
-      user.id,
-      dto,
-    );
+    return this.messagesService.create(roomId, user.id, dto, ip);
   }
 
   @Get()
@@ -51,10 +44,7 @@ export class MessagesController {
     @Param("roomId") roomId: string,
     @Query() q: MessageQueryDto,
   ) {
-    return this.messagesService.findAll(
-      roomId,
-      q,
-    );
+    return this.messagesService.findAll(roomId, q);
   }
 
   @Get(":messageId")
@@ -62,10 +52,7 @@ export class MessagesController {
     @Param("roomId") roomId: string,
     @Param("messageId") messageId: string,
   ) {
-    return this.messagesService.findOne(
-      roomId,
-      messageId,
-    );
+    return this.messagesService.findOne(roomId, messageId);
   }
 
   @Patch(":messageId")
@@ -74,13 +61,9 @@ export class MessagesController {
     @Param("messageId") messageId: string,
     @CurrentUser() user: AuthUser,
     @Body() dto: UpdateMessageDto,
+    @Ip() ip: string,
   ) {
-    return this.messagesService.update(
-      roomId,
-      messageId,
-      user.id,
-      dto,
-    );
+    return this.messagesService.update(roomId, messageId, user.id, dto, ip);
   }
 
   @Delete(":messageId")
@@ -89,15 +72,16 @@ export class MessagesController {
     @Param("messageId") messageId: string,
     @CurrentUser() user: AuthUser,
     @Req() req: any,
+    @Ip() ip: string,
   ) {
-    const isOwner =
-      req.roomMember?.role === "owner";
+    const isOwner = req.roomMember?.role === "owner";
 
     return this.messagesService.remove(
       roomId,
       messageId,
       user.id,
       isOwner,
+      ip,
     );
   }
 }
