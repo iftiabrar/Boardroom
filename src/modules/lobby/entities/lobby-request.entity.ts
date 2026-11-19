@@ -30,6 +30,9 @@ export class LobbyRequest {
     @Column('uuid')
     user_id!: string;
 
+    @Column('uuid', { nullable: true })
+    invite_id?: string | null;
+
     @ManyToOne(() => User, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'user_id' })
     user!: User;
